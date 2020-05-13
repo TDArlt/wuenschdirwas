@@ -54,6 +54,27 @@
             }
         }
 
+        
+        if ($postInfo['type'] == 'verify')
+        {
+            if (isset($postInfo['token']))
+            {
+                if ($postInfo['token'] == $userInfo->admin->token)
+                {
+                    $_OUTPUT = ['success' => true, 'user' => $userInfo->admin->username, 'may_edit' => true];
+                } elseif ($postInfo['token'] == $userInfo->guest->token)
+                {
+                    $_OUTPUT = ['success' => true, 'user' => $userInfo->guest->username, 'may_edit' => false];
+                } else
+                {
+                    $_OUTPUT = ['success' => false];
+                }
+            } else
+            {
+                $_OUTPUT = ['success' => false];
+            }
+        }
+
         // Secured area
 
         if (isset($postInfo['token']) &&
@@ -62,6 +83,7 @@
             ))
         {
             $jsonList = json_decode(file_get_contents('data/list.json'), true);
+
 
 
             if ($postInfo['type'] == 'list')
@@ -91,7 +113,7 @@
                 $elementPosition = -1;
                 for ($i=0; $i < count($jsonList); $i++)
                 { 
-                    if ($jsonList[$i] == $postInfo['id'])
+                    if ($jsonList[$i]['id'] == $postInfo['id'])
                     {
                         $elementPosition = $i;
                     }
@@ -103,6 +125,7 @@
                         'id' => $postInfo['id'],
                         'name' => $postInfo['name'],
                         'description' => $postInfo['description'],
+                        'price' => $postInfo['price'],
                         'links' => json_decode($postInfo['links'], true),
                         'visible' => $postInfo['visible'],
                         'reserved' => $postInfo['reserved'],
@@ -130,28 +153,31 @@
                 fwrite($listFile, json_encode($jsonList));
                 fclose($listFile);
 
+                $_OUTPUT = ['success' => true];
             }
 
 
             if ($postInfo['type'] == 'delete' && $postInfo['token'] == $userInfo->admin->token)
             {
-                $elementPosition = -1;
+                $found = false;
+                $newList = [];
                 for ($i=0; $i < count($jsonList); $i++)
                 { 
-                    if ($jsonList[$i] == $postInfo['id'])
+                    if ($jsonList[$i]['id'] == $postInfo['id'])
                     {
-                        $elementPosition = $i;
+                        $found = true;
+                    } else
+                    {
+                        $newList[] = $jsonList[$i];
                     }
                 }
+                
+                $listFile = fopen("data/list.json", "w");
+                fwrite($listFile, json_encode($newList));
+                fclose($listFile);
 
-                if ($elementPosition > -1)
-                {
-                    unset($jsonList[$elementPosition]);
-                    
-                    $listFile = fopen("data/list.json", "w");
-                    fwrite($listFile, json_encode($jsonList));
-                    fclose($listFile);
-                }
+                $_OUTPUT = ['success' => $found];
+                
             }
 
 
@@ -171,6 +197,21 @@
                     'X-Mailer: PHP/' . phpversion();
 
                 $success = @mail ($to, $subject, $message, $header);
+
+                $logFileContent = json_decode(file_get_contents("data/log.json"));
+                $logFileContent[] = [
+                    'time' => date("Y-m-d H:i:s"),
+                    'to' => $to,
+                    'subject' => $subject,
+                    'message' => $message,
+                    'header' => $header,
+                    'success' => $success
+                ];
+
+                $logFile = fopen("data/log.json", "w");
+                fwrite($logFile, json_encode($logFileContent));
+                fclose($logFile);
+
 
                 $_OUTPUT = ['success' => $success];
             }

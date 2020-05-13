@@ -1,14 +1,14 @@
 {
     "admin":
     {
-        "username": "Eltern",
+        "username": "Listen-Verwalter",
         "password": "Eltern",
         "token": "92e5136b-fba2-4529-8cb3-72a6d6118fd0"
     },
     
     "guest":
     {
-        "username": "Baby",
+        "username": "Gast",
         "password": "Baby",
         "token": "a87340f0-17b5-4f53-8c45-ef76f33008b6"
     }

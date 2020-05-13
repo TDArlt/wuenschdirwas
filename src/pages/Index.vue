@@ -1,7 +1,7 @@
 <template>
   <q-page class="bg-blue-grey" padding>
     <div class="fit row bg-white shadow-2 rounded-borders">
-      <div class="col q-pa-md">
+      <div class="col q-pa-md" v-if="thereAreWishes">
         <q-list separator >
           <template v-for="(wish, index) in wishlist">
             <q-item v-if="(!wish.fulfilled && wish.visible) || mayEdit" :key="wish.id" class="row q-pa-xs">
@@ -10,13 +10,10 @@
                 <q-item-section class="q-pa-sm">
                   <q-item-label class="text-primary" style="font-size: 18px; font-weight: bold;">
                     {{wish.name}}
-                  <!--
-                    <q-skeleton type="text" width="100px" />
-                  -->
                   </q-item-label>
 
                   <q-item-label caption style="margin-top:12px">
-                    <p>{{wish.description}}</p>
+                    <p style="white-space: pre;">{{wish.description}}</p>
                     <p v-if="wish.price != ''">
                       Preis ca.: {{wish.price}}
                     </p>
@@ -148,7 +145,16 @@
             </q-item>
           </template>
         </q-list>
-        
+      </div>
+
+
+      <div v-else class="col q-pa-md">
+        <q-chip color="primary" text-color="white" icon="info_outline" size="md">
+          Oha! Scheinbar ist die Wunschliste aktuell leer!
+        </q-chip>
+      </div>
+
+      
           <q-page-sticky v-if="mayEdit" position="bottom-right" :offset="fabPos">
             <q-btn
               round
@@ -160,7 +166,7 @@
               @click="onAddClick"
             />
           </q-page-sticky>
-      </div>
+      
     </div>
 
     <q-dialog
@@ -222,38 +228,60 @@ export default {
   name: 'PageIndex',
   data() {
     return {
-      //linkUrl: './statics/xchange.php',
-      linkUrl: 'http://localhost/wuenschdirwas/src/statics/xchange.php',
+      linkUrl: './statics/xchange.php',
+      //linkUrl: 'http://localhost/wuenschdirwas/src/statics/xchange.php',
 
 
       wishlist: [],
 
-      mayEdit: true,
+      mayEdit: false,
 
       editableWish: [],
       showEdit: false,
 
       
       fabPos: [ 18, 18 ],
-      draggingFab: false
+      draggingFab: false,
+
+      accessToken: '',
     }
+  },
+
+  computed: {
+      thereAreWishes: function() {
+        if (this.wishlist.length == 0)
+        {
+          return false;
+        } else if (!this.mayEdit)
+        {
+          let count = 0;
+          this.wishlist.forEach(wish => {
+            if (!wish.fulfilled && wish.visible)
+            {
+              count++;
+            }
+          });
+
+          return (count > 0);
+        } else
+        {
+          return true;
+        }
+      }
   },
 
   mounted()
   {
+    this.accessToken = this.$q.cookies.get('access_token');
     this.loadData();
   },
 
   methods: {
-    //TODO: Find out about cookies and storing the current user type:
-    // https://quasar.dev/quasar-plugins/cookies
-
-    //TODO: Edit wish popup (for editing and adding)
 
     async loadData() {
       this.$q.loading.show();
-      //TODO: Loading
 
+      // Create dummy content
       for (let index = 1; index <= 20; index++)
       {
         this.wishlist.push (
@@ -271,8 +299,23 @@ export default {
             dummy: true
           }
         );
-        
       }
+
+      // Load user rights
+      let verifyPostParam = {
+        type: 'verify',
+        token: this.accessToken
+      }
+      let verifyInfo = await this.$axios.post(this.linkUrl, verifyPostParam);
+      this.mayEdit = verifyInfo.data.may_edit;
+
+      // Load real content
+      let postParam = {
+        type: 'list',
+        token: this.accessToken
+      }
+      let info = await this.$axios.post(this.linkUrl, postParam);
+      this.wishlist = info.data;
 
       this.wishlist.sort(this.sortWishes);
 
@@ -487,8 +530,6 @@ export default {
         wish.fulfilled = true;
         this.updateElement(id);
 
-        //TODO: Send mail...
-
         
         this.$q.notify({
           message: 'Alles klar, "' + wish.name + '" wurde jetzt als "erfüllt" gekennzeichnet.',
@@ -496,6 +537,49 @@ export default {
           progress: true,
           multiLine: true,
           icon: 'library_add_check',
+        });
+
+        // Send mail...
+        let wishMessage = 'Hallo,\ndu hast dir gerade folgenden Wunsch auf unserer Webseite zum Erfüllen ausgesucht:\n' +
+          wish.name + '\n' + wish.description + '\nPreis ca.: ' + wish.price + '\n';
+        
+        if (wish.links.length > 0)
+        {
+          wishMessage += 'Beispiel-Links:\n';
+          wish.links.forEach(link => {
+            wishMessage += link + '\n';
+          });
+        }
+
+        wishMessage += '\nVielen Dank schon einmal dafür!';
+        
+        let postParam = {
+          type: 'mail',
+          token: this.accessToken,
+          subject: 'Wünsch dir was Webseite: Dein zu erfüllender Wunsch',
+          message: wishMessage,
+          to: data
+        }
+        this.$axios.post(this.linkUrl, postParam).then(received => {
+          if (received.data.success === true)
+          {
+            this.$q.notify({
+              message: 'Du hast auch eine E-Mail an ' + data + ' bekommen (prüfe eventuell deinen Spam-Ordner)',
+              color: 'green',
+              progress: true,
+              multiLine: true,
+              icon: 'mail',
+            });
+          } else
+          {
+            this.$q.notify({
+              message: 'Leider konnten wir keine Mail an ' + data + ' verschicken. Falls das ein Problem ist, melde dich bitte bei uns!',
+              color: 'red',
+              progress: true,
+              multiLine: true,
+              icon: 'unsubscribe',
+            });
+          }
         });
       });
 
@@ -581,14 +665,36 @@ export default {
     async updateElement(id)
     {
       let wish = this.getWishById(id);
-      //TODO: Manage updating element in db
+
+      let postParam = {
+        type: 'update',
+        token: this.accessToken,
+        id: wish.id,
+        name: wish.name,
+        description: wish.description,
+        price: wish.price,
+        links: JSON.stringify(wish.links),
+        visible: wish.visible,
+        reserved: wish.reserved,
+        fulfilled: wish.fulfilled,
+        position: wish.position,
+      }
+      let info = await this.$axios.post(this.linkUrl, postParam);
+
+      return info.success;
     },
 
 
     async deleteElementInDb(id)
     {
-      let wish = this.getWishById(id);
-      //TODO: Manage deleting element in db
+      let postParam = {
+        type: 'delete',
+        token: this.accessToken,
+        id: id
+      }
+      let info = await this.$axios.post(this.linkUrl, postParam);
+
+      return info.success;
     },
 
 
