@@ -192,11 +192,13 @@
                     $to = $postInfo['to'];
                 }
                 
-                $header = 'From: ca.ch@cf-studios.com' . "\r\n" .
+                $header = 'MIME-Version: 1.0' . "\r\n".
+                    'Content-type: text/plain; charset=UTF-8' ."\r\n".
+                    'From: ca.ch@cf-studios.com' . "\r\n" .
                     'Reply-To: ca.ch@cf-studios.com' . "\r\n" .
                     'X-Mailer: PHP/' . phpversion();
 
-                $success = @mail ($to, $subject, $message, $header);
+                $success = @mail ($to, '=?UTF-8?B?'.base64_encode($subject).'?=', $message, $header);
 
                 $logFileContent = json_decode(file_get_contents("data/log.json"));
                 $logFileContent[] = [
