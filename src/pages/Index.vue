@@ -13,11 +13,11 @@
                   </q-item-label>
 
                   <q-item-label caption style="margin-top:12px">
-                    <p style="white-space: pre;">{{wish.description}}</p>
-                    <p v-if="wish.price != ''">
+                    <p style="white-space: pre-wrap;">{{wish.description}}</p>
+                    <p v-if="wish.price != '' && wish.price != '€ 0'">
                       Preis ca.: {{wish.price}}
                     </p>
-                    <p style="margin-bottom:2px">
+                    <p style="margin-bottom:2px" v-if="wish.links.length > 0">
                       <q-btn v-for="link in wish.links"
                         :key="wish.id + '_' + link"
                         outline no-caps size="sm"
@@ -665,6 +665,7 @@ export default {
     async updateElement(id)
     {
       let wish = this.getWishById(id);
+      wish.isNew = false;
 
       let postParam = {
         type: 'update',

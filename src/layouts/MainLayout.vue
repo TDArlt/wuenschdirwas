@@ -20,8 +20,10 @@
           aria-label="Menu"
           disable
         />
-
-        <q-toolbar-title>
+        <q-toolbar-title style="text-align: center;">
+          <q-avatar circle outline size="sm">
+            <img src="statics/icons/favicon.svg">
+          </q-avatar>
           Wünsch dir was
         </q-toolbar-title>
       </q-toolbar>
@@ -99,7 +101,7 @@
           <q-card bordered class="q-pa-lg shadow-1">
             <q-card-section>
               <div class="text-h6">Login</div>
-              <q-form class="q-gutter-md q-mt-sm">
+              <div class="q-gutter-md q-mt-sm">
                 <q-input
                   v-model="password" filled :type="isPwd ? 'password' : 'text'"
                   dense required
@@ -113,7 +115,7 @@
                     />
                   </template>
                 </q-input>
-              </q-form>
+              </div>
             </q-card-section>
             <q-card-actions class="q-px-md">
               <q-btn @click="login" dense unelevated color="blue-grey-6" size="m" class="full-width" label="Login" type="submit"/>
@@ -215,7 +217,7 @@ export default {
         });
 
         // Set cookie
-        this.$q.cookies.set('access_token', info.data.token);
+        this.$q.cookies.set('access_token', info.data.token, { expires: 30 });
         this.loggedIn = true;
 
       } else
