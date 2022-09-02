@@ -2,14 +2,49 @@
   <q-page class="bg-blue-grey" padding>
     <div class="fit row bg-white shadow-2 rounded-borders">
       <div class="col q-pa-md" v-if="thereAreWishes">
+        TODO: Filter<br />
+        TODO: Kind beim Wunsch-Erstellen/-Bearbeiten mit angeben
+
+
         <q-list separator >
+          <q-expansion-item
+            expand-separator dense
+            v-model="filterOpened"
+            label="Liste filtern nach..."
+            header-class="text-bold text-primary"
+          >
+            <q-item class="q-pt-sm q-pb-md">
+              <q-item-section class="q-pl-lg">
+                <q-item-label v-if="mayEdit" class="row">
+                  <q-checkbox class="col-3" dense v-model="showFulfilled" label="Erfüllte Wünsche" @update:model-value="updateFilterCookies()" />
+                  <q-checkbox class="col-3" dense v-model="showInvisible" label="Ausgeblendete Wünsche" @update:model-value="updateFilterCookies()" />
+                </q-item-label>
+                <q-item-label class="row">
+                  <template v-for="person in allPersons" :key="person.id">
+                    <q-checkbox
+                      dense v-model="filterPersons['p' + person.id]"
+                      :label="person.name"
+                      @update:model-value="updateFilterCookies()"
+                      class="col-3"
+                      :style="'color:' + person.color"
+                      />
+                  </template>
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-expansion-item>
+
           <template v-for="(wish, index) in wishlist">
-            <q-item v-if="(!wish.fulfilled && wish.visible) || mayEdit" :key="wish.id" class="row q-pa-xs">
+            <q-item v-if="mayShowWish(wish)" :key="wish.id" class="row q-pa-xs">
               <template v-if="!wish.dummy">
 
                 <q-item-section class="q-pa-sm">
                   <q-item-label class="text-primary" style="font-size: 18px; font-weight: bold;">
                     {{wish.name}}
+                  </q-item-label>
+
+                  <q-item-label>
+                    <q-chip dense square :label="connectedPerson(wish.person).name" :style="'margin-left: 0px; background-color:'+ connectedPerson(wish.person).color" />
                   </q-item-label>
 
                   <q-item-label caption style="margin-top:12px">
@@ -184,6 +219,10 @@
             filled type="text" label="Name" class="q-mb-sm"
             :rules="[val => !!val || 'Bitte einen Namen angeben!']"
             />
+          <q-select
+            v-model="editableWish.selectedperson"
+            :options="personDropdown" class="q-mb-sm" 
+            label="Der Wunsch ist für..." filled />
           <q-input v-model="editableWish.description"
             ref="editDescription"
             filled type="textarea" class="q-mb-sm" label="Beschreibung" autogrow
@@ -194,8 +233,8 @@
             class="q-mb-sm q-pb-sm"
             label="Preis ca." />
 
-          <template v-for="(url, index) in editableWish.links">
-            <q-input :key="index" filled class="q-mb-sm"
+          <template v-for="(url, index) in editableWish.links" :key="index">
+            <q-input filled class="q-mb-sm"
               v-model="editableWish.links[index]" type="url" label="Link" clearable 
               @clear="editableWish.links.splice(index, 1)"
               />
@@ -210,7 +249,7 @@
           
         </q-card-section>
 
-        <q-card-actions align="right" class="bg-white text-teal">
+        <q-card-actions side align="right" class="bg-white text-teal">
           <q-btn flat label="Abbrechen" icon="cancel" v-close-popup />
           <q-btn
             v-if="!editableWish.isNew"
@@ -224,12 +263,14 @@
 </template>
 
 <script>
-export default {
-  name: 'PageIndex',
+import { defineComponent } from 'vue'
+
+export default defineComponent({
+  name: 'IndexPage',
   data() {
     return {
-      linkUrl: './statics/xchange.php',
-      //linkUrl: 'http://localhost/wuenschdirwas/src/statics/xchange.php',
+      //linkUrl: './xchange.php',
+      linkUrl: 'https://wunschliste.arlt.io/statics/xchange.php',
 
 
       wishlist: [],
@@ -239,11 +280,24 @@ export default {
       editableWish: [],
       showEdit: false,
 
+      allPersons: [],
+      personDropdown: [],
+      defaultPerson: {},
+
+      filterPersons: {
+
+      },
+
+      showFulfilled: true,
+      showInvisible: true,
+
       
       fabPos: [ 18, 18 ],
       draggingFab: false,
 
       accessToken: '',
+
+      filterOpened: true,
     }
   },
 
@@ -273,6 +327,11 @@ export default {
   mounted()
   {
     this.accessToken = this.$q.cookies.get('access_token');
+    if (this.$q.cookies.has('showFulfilled'))
+    {
+      this.showFulfilled = this.$q.cookies.get('showFulfilled') == "true";
+      this.showInvisible = this.$q.cookies.get('showInvisible') == "true";
+    }
     this.loadData();
   },
 
@@ -308,6 +367,48 @@ export default {
       }
       let verifyInfo = await this.$axios.post(this.linkUrl, verifyPostParam);
       this.mayEdit = verifyInfo.data.may_edit;
+
+      // Load users
+      this.allPersons = (await this.$axios.post(this.linkUrl, {
+        type: 'persons',
+        token: this.accessToken
+      })).data;
+
+      this.filterPersons = {};
+      this.personDropdown = [];
+
+      if (this.$q.cookies.has('filterPersons'))
+      {
+        this.filterPersons = this.$q.cookies.get('filterPersons');
+      }
+
+      for (let index = 0; index < this.allPersons.length; index++)
+      {
+        if (!('p' + this.allPersons[index].id in this.filterPersons))
+        {
+          this.filterPersons['p' + this.allPersons[index].id] = true;
+        }
+
+        this.personDropdown.push({
+          label: this.allPersons[index].name,
+          color: this.allPersons[index].color,
+          value: this.allPersons[index].id,
+        });
+
+        if (index == 0)
+        {
+          this.defaultPerson = {
+            label: this.allPersons[index].name,
+            color: this.allPersons[index].color,
+            value: this.allPersons[index].id,
+          };
+        }
+      }
+
+
+
+
+
 
       // Load real content
       let postParam = {
@@ -348,6 +449,45 @@ export default {
     },
 
 
+    connectedPerson(userId)
+    {
+      for (let index = 0; index < this.allPersons.length; index++)
+      {
+        if (this.allPersons[index].id == userId)
+        {
+          return this.allPersons[index];
+        }
+      }
+
+      return {
+        name: "",
+        color: "#fff",
+      }
+    },
+
+    mayShowWish(wish)
+    {
+      if ((!wish.fulfilled && wish.visible) || this.mayEdit)
+      {
+        if ((this.showInvisible || wish.visible) && (this.showFulfilled || !wish.fulfilled))
+        {
+          return (this.filterPersons['p' + wish.person]);
+        }
+      }
+
+
+      return false;
+
+    },
+
+    updateFilterCookies()
+    {
+      this.$q.cookies.set('showFulfilled', this.showFulfilled, { expires: 3000 });
+      this.$q.cookies.set('showInvisible', this.showInvisible, { expires: 3000 });
+      this.$q.cookies.set('filterPersons', this.filterPersons, { expires: 3000 });
+    },
+
+
 
     showEditWish(id)
     {
@@ -382,6 +522,8 @@ export default {
         reserved: false,
         fulfilled: false,
         position: highestPosition + 10,
+        person: 1,
+        selectedperson: JSON.parse(JSON.stringify(this.defaultPerson)),
         
         dummy: false,
         isNew: isNew
@@ -391,6 +533,16 @@ export default {
       if (foundWish != null)
       {
         this.editableWish = JSON.parse(JSON.stringify(foundWish));
+
+        for (let index = 0; index < this.personDropdown.length; index++)
+        {
+          if (this.editableWish.person == this.personDropdown[index].value)
+          {
+            this.editableWish.selectedperson = this.personDropdown[index];
+            break;
+          }
+          
+        }
       }
 
       this.showEdit = true;
@@ -411,6 +563,8 @@ export default {
         });
         return;
       }
+
+      this.editableWish.person = this.editableWish.selectedperson.value;
 
       for (let index = 0; index < this.editableWish.links.length; index++)
       {
@@ -679,7 +833,9 @@ export default {
         reserved: wish.reserved,
         fulfilled: wish.fulfilled,
         position: wish.position,
+        person: wish.person,
       }
+      
       let info = await this.$axios.post(this.linkUrl, postParam);
 
       return info.success;
@@ -727,5 +883,5 @@ export default {
     }
   }
 
-}
+})
 </script>

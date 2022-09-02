@@ -1,0 +1,16 @@
+{
+    "admin": {
+        "id": "1",
+        "username": "Listen-Verwalter",
+        "password": "X1",
+        "token": "Y1"
+    },
+    "guests": [
+        {
+            "id": "2",
+            "username": "Gast",
+            "password": "X2",
+            "token": "Y2"
+        }
+    ]
+}

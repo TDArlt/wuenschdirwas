@@ -1,0 +1,22 @@
+[
+    {
+        "id": 1,
+        "name": "Olivia",
+        "color": "#c87ddb",
+        "visible_to_users":
+        [
+            1,
+            2
+        ]
+    },
+    {
+        "id": 2,
+        "name": "Valerie",
+        "color": "#edbc93",
+        "visible_to_users":
+        [
+            1,
+            2
+        ]
+    }
+]

@@ -10,6 +10,13 @@
 
     // Get users
     $userInfo = json_decode(file_get_contents('data/user.json'));
+    $currentGuest = [];
+    $isAdmin = false;
+    $isGuest = false;
+
+
+    // Get persons
+    $persons = json_decode(file_get_contents('data/persons.json'));
 
     //Authenticate
 
@@ -42,45 +49,74 @@
     {
         if ($postInfo['type'] == 'login')
         {
+            $loginSuccess = false;
+
             if ($postInfo['password'] == $userInfo->admin->password)
             {
                 $_OUTPUT = ['success' => true, 'token' => $userInfo->admin->token];
-            } else if ($postInfo['password'] == $userInfo->guest->password)
-            {
-                $_OUTPUT = ['success' => true, 'token' => $userInfo->guest->token];
+                $loginSuccess = true;
             } else
+            {
+                foreach ($userInfo->guests as $aGuest)
+                {
+                    if ($aGuest->password == $postInfo['password'])
+                    {
+                        $_OUTPUT = ['success' => true, 'token' => $aGuest->token];
+                        $loginSuccess = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!$loginSuccess)
             {
                 $_OUTPUT = ['success' => false];
             }
         }
 
         
+
+        // Secured area
+
+        // Get user
+        if (isset($postInfo['token']))
+        {
+            if ($postInfo['token'] == $userInfo->admin->token)
+            {
+                $isAdmin = true;
+            } else
+            {
+                foreach ($userInfo->guests as $aGuest)
+                {
+                    if ($aGuest->token == $postInfo['token'])
+                    {
+                        $isGuest = true;
+                        $currentGuest = $aGuest;
+                        break;
+                    }
+                }
+            }
+        }
+
+
         if ($postInfo['type'] == 'verify')
         {
-            if (isset($postInfo['token']))
+            if ($isAdmin)
             {
-                if ($postInfo['token'] == $userInfo->admin->token)
-                {
-                    $_OUTPUT = ['success' => true, 'user' => $userInfo->admin->username, 'may_edit' => true];
-                } elseif ($postInfo['token'] == $userInfo->guest->token)
-                {
-                    $_OUTPUT = ['success' => true, 'user' => $userInfo->guest->username, 'may_edit' => false];
-                } else
-                {
-                    $_OUTPUT = ['success' => false];
-                }
+                $_OUTPUT = ['success' => true, 'user' => $userInfo->admin->username, 'may_edit' => true];
+            } elseif ($isGuest)
+            {
+                $_OUTPUT = ['success' => true, 'user' => $aGuest->username, 'may_edit' => false];
             } else
             {
                 $_OUTPUT = ['success' => false];
             }
         }
 
-        // Secured area
 
-        if (isset($postInfo['token']) &&
-            ($postInfo['token'] == $userInfo->admin->token ||
-            $postInfo['token'] == $userInfo->guest->token
-            ))
+
+
+        if ($isAdmin || $isGuest)
         {
             $jsonList = json_decode(file_get_contents('data/list.json'), true);
 
@@ -92,18 +128,63 @@
                 $_OUTPUT = [];
 
                 // If we are not admin, we need to skip invisible and fulfilled objects
-                if ($postInfo['token'] == $userInfo->guest->token)
-                {
+                if ($isGuest)
+                {                    
                     foreach ($jsonList as $element)
                     {
                         if ($element['visible'] == true && $element['fulfilled'] == false)
                         {
-                            $_OUTPUT[] = $element;
+                            $isInPersons = false;
+
+                            // Also, we need to skip the elements we are not able to fulfil wishes to
+                            foreach ($persons as $person)
+                            {
+                                if ($person->id == $element['person'])
+                                {
+                                    $isInPersons = in_array($currentGuest->id, $person->visible_to_users);
+                                }
+                            }
+
+                            if ($isInPersons)
+                            {
+                                $_OUTPUT[] = $element;
+                            }
+
                         }
                     }
                 } else
                 {
                     $_OUTPUT = $jsonList;
+                }
+            }
+
+
+            if ($postInfo['type'] == 'persons')
+            {
+                // Return lsit of persons
+                $_OUTPUT = [];
+                
+                foreach ($persons as $aPerson)
+                {
+                    if ($isAdmin)
+                    {
+                        $_OUTPUT[] = [
+                            "id" => $aPerson->id,
+                            "name" => $aPerson->name,
+                            "color" => $aPerson->color,
+                        ];
+                    } else
+                    {
+                        if (in_array($currentGuest->id, $aPerson->visible_to_users))
+                        {
+                            $_OUTPUT[] = [
+                                "id" => $aPerson->id,
+                                "name" => $aPerson->name,
+                                "color" => $aPerson->color,
+                            ];
+                        }
+                    }
+
                 }
             }
 
@@ -130,6 +211,7 @@
                         'visible' => $postInfo['visible'],
                         'reserved' => $postInfo['reserved'],
                         'fulfilled' => $postInfo['fulfilled'],
+                        'person' => $postInfo['person'],
                         'position' => $postInfo['position']
                     ];
 

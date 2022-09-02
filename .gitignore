@@ -2,6 +2,8 @@
 .thumbs.db
 node_modules
 
+/src/_old
+
 # Visual Studio Code
 .vscode
 

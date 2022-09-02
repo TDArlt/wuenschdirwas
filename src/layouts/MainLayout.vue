@@ -22,7 +22,7 @@
         />
         <q-toolbar-title style="text-align: center;">
           <q-avatar circle outline size="sm">
-            <img src="statics/icons/favicon.svg">
+            <img src="~assets/favicon.svg">
           </q-avatar>
           Wünsch dir was
         </q-toolbar-title>
@@ -134,15 +134,15 @@
 </template>
 
 <script>
-import EssentialLink from 'components/EssentialLink'
+import { defineComponent, ref } from 'vue'
 
-export default {
+export default defineComponent({
   name: 'MainLayout',
 
   data () {
     return {
-      linkUrl: './statics/xchange.php',
-      //linkUrl: 'http://localhost/wuenschdirwas/src/statics/xchange.php',
+      //linkUrl: './xchange.php',
+      linkUrl: 'https://wunschliste.arlt.io/statics/xchange.php',
 
       loadingState: true,
 
@@ -293,5 +293,5 @@ export default {
       });
     },
   }
-}
+})
 </script>
