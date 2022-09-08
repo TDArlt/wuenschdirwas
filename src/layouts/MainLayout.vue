@@ -141,8 +141,8 @@ export default defineComponent({
 
   data () {
     return {
-      //linkUrl: './xchange.php',
-      linkUrl: 'https://wunschliste.arlt.io/statics/xchange.php',
+      linkUrl: './xchange.php',
+      //linkUrl: 'https://wunschliste.arlt.io/xchange.php',
 
       loadingState: true,
 

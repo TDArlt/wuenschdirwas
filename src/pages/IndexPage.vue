@@ -2,10 +2,6 @@
   <q-page class="bg-blue-grey" padding>
     <div class="fit row bg-white shadow-2 rounded-borders">
       <div class="col q-pa-md" v-if="thereAreWishes">
-        TODO: Filter<br />
-        TODO: Kind beim Wunsch-Erstellen/-Bearbeiten mit angeben
-
-
         <q-list separator >
           <q-expansion-item
             expand-separator dense
@@ -269,8 +265,8 @@ export default defineComponent({
   name: 'IndexPage',
   data() {
     return {
-      //linkUrl: './xchange.php',
-      linkUrl: 'https://wunschliste.arlt.io/statics/xchange.php',
+      linkUrl: './xchange.php',
+      //linkUrl: 'https://wunschliste.arlt.io/xchange.php',
 
 
       wishlist: [],
@@ -743,9 +739,40 @@ export default defineComponent({
     async changeSort(arrayPos, downwards)
     {
       let newPos = arrayPos + 1;
-      if (!downwards)
+
+      if (downwards)
+      {
+        let found = false;
+
+        for (let index = newPos; index < this.wishlist.length; index++)
+        {
+          if (!found)
+          {
+            if (this.mayShowWish(this.wishlist[index]))
+            {
+              newPos = index;
+              found = true;
+              break;
+            }
+          }
+        }
+      } else
       {
         newPos = arrayPos - 1;
+        let found = false;
+
+        for (let index = newPos; index >= 0; index--)
+        {
+          if (!found)
+          {
+            if (this.mayShowWish(this.wishlist[index]))
+            {
+              newPos = index;
+              found = true;
+              break;
+            }
+          }
+        }
       }
       
 
